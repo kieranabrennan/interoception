@@ -1,13 +1,14 @@
 
 import asyncio
-from PySide6.QtCore import QTimer, Qt, QPointF, QSize, QFile
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QWidget
+from PySide6.QtCore import QTimer, Qt, QPointF, QSize, QFile, QTime, Signal
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QWidget, QPushButton, QLabel, QSpinBox
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries
 from PySide6.QtGui import QPen, QColor, QPainter, QFont
 from bleak import BleakScanner
 import time
 import numpy as np
 from Model import Model
+from enum import Enum
 
 class SquareWidget(QWidget):
     def __init__(self, parent=None):
@@ -25,6 +26,132 @@ class SquareWidget(QWidget):
         else:
             self.setMaximumWidth(side)
             self.setMaximumHeight(side)
+
+class CountdownTimer(QWidget):
+    timerFinished = Signal()
+
+    def __init__(self):
+        super().__init__()
+
+        self.initUI()
+
+    def initUI(self):
+        # Set up the main widget and layout
+        layout = QVBoxLayout(self)
+
+        # Create and configure the label to show the time
+        self.time_label = QLabel("00:05")
+        self.time_label.setStyleSheet("color: black;")
+        self.time_label.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(self.time_label)
+
+        self.countdown_time = QTime(0, 0, 5)
+
+        # Create a QTimer
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.updateTimer)
+
+    def updateTimer(self):
+        # Subtract one second
+        self.countdown_time = self.countdown_time.addSecs(-1)
+        
+        # Update the label
+        self.time_label.setText(self.countdown_time.toString("mm:ss"))
+
+        # Stop the timer if the countdown has finished
+        if self.countdown_time == QTime(0, 0, 0):
+            self.timer.stop()
+            self.timerFinished.emit()
+
+    def startTimer(self):
+        if not self.timer.isActive():
+            self.timer.start(1000)
+    
+    def resetTimer(self):
+        self.countdown_time = QTime(0, 0, 5)
+        self.time_label.setText(self.countdown_time.toString("mm:ss"))
+
+class ControlState(Enum):
+    INITIALISING = 1
+    RECORDING_BEATS = 2
+    RECORDING_INPUT = 3
+    FINISHED = 4
+
+class ControlWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.countdown_timer = CountdownTimer()
+        self.state = ControlState.INITIALISING
+
+        self.initUI()
+
+    def initUI(self):
+
+        controls_layout = QVBoxLayout()
+        self.setLayout(controls_layout)
+
+        self.start_button = QPushButton("Start")
+        self.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+        self.start_button.setMaximumWidth(500)
+        self.start_button.setMinimumWidth(100)
+        self.start_button.setMinimumHeight(30)
+        controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
+
+        self.message_box = QLabel()
+        self.message_box.setStyleSheet("background-color: white; color: black;")
+        self.message_box.setText("Press start and begin heart beat counting")
+        self.message_box.setMaximumWidth(800)
+        self.message_box.setMinimumWidth(500)
+        self.message_box.setMinimumHeight(30)
+        self.message_box.setAlignment(Qt.AlignCenter)
+        controls_layout.addWidget(self.message_box, alignment=Qt.AlignCenter)
+
+        self.spin_box = QSpinBox()
+        self.spin_box.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+        self.spin_box.setRange(0, 100)
+        self.spin_box.setSingleStep(1)
+        self.spin_box.setValue(0)
+        self.spin_box.setMaximumWidth(200)
+        self.spin_box.setMinimumWidth(100)
+        self.spin_box.setMinimumHeight(30)
+        self.spin_box.setAlignment(Qt.AlignCenter)
+        controls_layout.addWidget(self.spin_box, alignment=Qt.AlignCenter)
+        self.spin_box.hide()
+
+        self.timer_widget = CountdownTimer()
+        self.timer_widget.timerFinished.connect(self.countdownFinished)
+        self.start_button.clicked.connect(self.buttonPressed)
+        controls_layout.addWidget(self.timer_widget)
+
+    def buttonPressed(self):
+        if self.state == ControlState.INITIALISING:
+            self.timer_widget.startTimer()
+            self.state = ControlState.RECORDING_BEATS
+            self.message_box.setText("Count your heart beats")
+            self.message_box.setStyleSheet("background-color: red; color: white;")
+            self.spin_box.hide()
+        elif self.state == ControlState.RECORDING_BEATS:
+            pass
+        elif self.state == ControlState.RECORDING_INPUT:
+            self.state = ControlState.FINISHED
+            # TODO: Save the value of the spin box
+            self.message_box.setText("Finished")
+            self.message_box.setStyleSheet("background-color: green; color: white;")
+            self.start_button.hide()
+            self.spin_box.hide()
+        else:
+            pass
+
+    def countdownFinished(self):
+        self.state = ControlState.RECORDING_INPUT        
+        self.spin_box.show()
+        self.message_box.setText("Enter how many heart beats you counted")
+        self.message_box.setStyleSheet("background-color: green; color: white;")
+        self.start_button.setText("Submit")
+
+    
 
 class View(QChartView):
     
@@ -77,11 +204,11 @@ class View(QChartView):
         acc_widget = QChartView(self.chart_acc)
         acc_widget.setStyleSheet("background-color: transparent;")
         acc_widget.setRenderHint(QPainter.Antialiasing)
-        
-        topRowLayout = QHBoxLayout()
-        topRowLayout.addWidget(acc_widget, stretch=3)
 
-        layout.addLayout(topRowLayout, stretch=1)
+        controls_widget = ControlWidget()
+        
+        layout.addWidget(acc_widget, stretch=3)
+        layout.addWidget(controls_widget, stretch=1)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
