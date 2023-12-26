@@ -2,11 +2,15 @@ import numpy as np
 import asyncio
 from PolarH10 import PolarH10
 import time
+from PySide6.QtCore import QObject,Signal
 
-class Model:
+class Model(QObject):
+    sensorConnected = Signal()
 
     def __init__(self):
         
+        super().__init__()
+
         self.polar_sensor = None
 
         # Sample rates
@@ -32,6 +36,7 @@ class Model:
         await self.polar_sensor.connect()
         await self.polar_sensor.get_device_info()
         await self.polar_sensor.print_device_info()
+        self.sensorConnected.emit()
         
     async def disconnect_sensor(self):
         await self.polar_sensor.disconnect()

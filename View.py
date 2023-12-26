@@ -1,7 +1,7 @@
 
 import asyncio
-from PySide6.QtCore import QTimer, Qt, QPointF, QSize, QFile, QTime, Signal
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QWidget, QPushButton, QLabel, QSpinBox
+from PySide6.QtCore import QTimer, Qt, QPointF, QSize, QFile, QTime, Signal, Slot
+from PySide6.QtWidgets import QVBoxLayout, QSizePolicy, QWidget, QPushButton, QLabel, QSpinBox
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries
 from PySide6.QtGui import QPen, QColor, QPainter, QFont
 from bleak import BleakScanner
@@ -74,9 +74,10 @@ class CountdownTimer(QWidget):
 
 class ControlState(Enum):
     INITIALISING = 1
-    RECORDING_BEATS = 2
-    RECORDING_INPUT = 3
-    FINISHED = 4
+    READY_TO_START = 2
+    RECORDING_BEATS = 3
+    RECORDING_INPUT = 4
+    FINISHED = 5
 
 class ControlWidget(QWidget):
     def __init__(self):
@@ -92,21 +93,21 @@ class ControlWidget(QWidget):
         controls_layout = QVBoxLayout()
         self.setLayout(controls_layout)
 
-        self.start_button = QPushButton("Start")
-        self.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
-        self.start_button.setMaximumWidth(500)
-        self.start_button.setMinimumWidth(100)
-        self.start_button.setMinimumHeight(30)
-        controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
-
         self.message_box = QLabel()
-        self.message_box.setStyleSheet("background-color: white; color: black;")
-        self.message_box.setText("Press start and begin heart beat counting")
+        self.message_box.setStyleSheet("background-color: yellow; color: black;")
+        self.message_box.setText("Connecting to sensor...")
         self.message_box.setMaximumWidth(800)
         self.message_box.setMinimumWidth(500)
         self.message_box.setMinimumHeight(30)
         self.message_box.setAlignment(Qt.AlignCenter)
         controls_layout.addWidget(self.message_box, alignment=Qt.AlignCenter)
+
+        self.start_button = QPushButton("Start")
+        self.start_button.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
+        self.start_button.setMaximumWidth(500)
+        self.start_button.setMinimumWidth(100)
+        self.start_button.setMinimumHeight(30)
+        controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
 
         self.spin_box = QSpinBox()
         self.spin_box.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
@@ -125,8 +126,26 @@ class ControlWidget(QWidget):
         self.start_button.clicked.connect(self.buttonPressed)
         controls_layout.addWidget(self.timer_widget)
 
+        self.timer_sensor_connected = QTimer()
+
+    @Slot()
+    def sensorConnected(self):
+        if self.state == ControlState.INITIALISING:
+            self.timer_sensor_connected.setSingleShot(True)
+            self.timer_sensor_connected.timeout.connect(self.setStateReady)
+            self.timer_sensor_connected.start(6000)
+
+    def setStateReady(self):
+        self.state = ControlState.READY_TO_START
+        self.message_box.setText("Press start and begin heart beat counting")
+        self.message_box.setStyleSheet("background-color: green; color: black;")
+        self.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+
+    @Slot()
     def buttonPressed(self):
         if self.state == ControlState.INITIALISING:
+            pass
+        elif self.state == ControlState.READY_TO_START:
             self.timer_widget.startTimer()
             self.state = ControlState.RECORDING_BEATS
             self.message_box.setText("Count your heart beats")
@@ -144,6 +163,7 @@ class ControlWidget(QWidget):
         else:
             pass
 
+    @Slot()
     def countdownFinished(self):
         self.state = ControlState.RECORDING_INPUT        
         self.spin_box.show()
@@ -151,7 +171,6 @@ class ControlWidget(QWidget):
         self.message_box.setStyleSheet("background-color: green; color: white;")
         self.start_button.setText("Submit")
 
-    
 
 class View(QChartView):
     
@@ -159,6 +178,8 @@ class View(QChartView):
         super().__init__(parent)
 
         self.model = Model()
+        self.controls_widget = ControlWidget()
+        self.model.sensorConnected.connect(self.controls_widget.sensorConnected)
 
         # Load the stylesheet from the file
         style_file = QFile("style.qss")
@@ -182,7 +203,7 @@ class View(QChartView):
         self.DOTSIZE_LARGE = 5
 
         # Series parameters
-        self.UPDATE_BREATHING_SERIES_PERIOD = 50 # ms
+        self.UPDATE_BREATHING_SERIES_PERIOD = 1 # ms
         self.BREATH_ACC_TIME_RANGE = 20 # s
 
         # Breathing acceleration
@@ -204,11 +225,9 @@ class View(QChartView):
         acc_widget = QChartView(self.chart_acc)
         acc_widget.setStyleSheet("background-color: transparent;")
         acc_widget.setRenderHint(QPainter.Antialiasing)
-
-        controls_widget = ControlWidget()
         
         layout.addWidget(acc_widget, stretch=3)
-        layout.addWidget(controls_widget, stretch=1)
+        layout.addWidget(self.controls_widget, stretch=1)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
