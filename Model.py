@@ -1,4 +1,3 @@
-import numpy as np
 import asyncio
 from PolarH10 import PolarH10
 from BeatTracker import BeatTracker

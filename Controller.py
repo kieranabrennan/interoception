@@ -1,8 +1,7 @@
 import asyncio
 from enum import Enum
 import time
-from PySide6.QtCore import Qt, Signal, Slot, QTimer, QTime
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QPushButton, QLabel, QSpinBox
+from PySide6.QtCore import Signal, Slot, QTimer, QTime, QObject
 from Model import Model
 from View import View
 import vars
@@ -11,7 +10,8 @@ class ControlState(Enum):
     READY_TO_START = 2
     RECORDING_BEATS = 3
     RECORDING_INPUT = 4
-    FINISHED = 5
+    RECORDING_CONFIDENCE = 5
+    FINISHED = 6
 
 class Controller:
     
@@ -80,10 +80,12 @@ class Controller:
         elif self.state == ControlState.RECORDING_BEATS:
             pass
         elif self.state == ControlState.RECORDING_INPUT:
+            self.state = ControlState.RECORDING_CONFIDENCE
+            self.model.beat_tracker.get_accuracy_score(self.view.controls_widget.beat_count_input.value())
+            self.view.control_recording_confidence()
+        elif self.state == ControlState.RECORDING_CONFIDENCE:
+
             self.state = ControlState.FINISHED
-            self.model.beat_tracker.get_accuracy_score(self.view.controls_widget.spin_box.value())
-            self.view.control_finished()
-            
         elif self.state == ControlState.FINISHED:
             self.state = ControlState.READY_TO_START
             self.view.control_ready_to_start()
@@ -97,7 +99,7 @@ class Controller:
         await self.model.connect_polar()
         await asyncio.gather(self.model.update_ecg())
 
-class CountdownTimer(QWidget):
+class CountdownTimer(QObject):
     timerFinished = Signal()
 
     def __init__(self):
