@@ -7,7 +7,7 @@ import sys
 import asyncio
 from PySide6.QtWidgets import QApplication
 from qasync import QEventLoop
-from View import View
+from Controller import Controller
 
 if __name__ == "__main__":
 
@@ -15,9 +15,6 @@ if __name__ == "__main__":
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     
-    plot = View()
-    plot.setWindowTitle("Rolling Plot")
-    plot.resize(1200, 600)
-    plot.show()
+    controller = Controller()
 
-    loop.run_until_complete(plot.main())
+    loop.run_until_complete(controller.main())

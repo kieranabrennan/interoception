@@ -1,33 +1,63 @@
 
-import asyncio
-from PySide6.QtCore import QTimer, Qt, QPointF, QFile, Slot
-from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtCore import QTimer, Qt, QPointF, QFile
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QWidget
 from PySide6.QtCharts import QChartView
 from PySide6.QtGui import QPainter
-from bleak import BleakScanner
 import time
 import numpy as np
-from Model import Model
-from Controller import Controller
 from ChartUtils import ChartUtils
 import vars
 
+class ControlsWidget(QWidget):
+
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+
+        controls_layout = QVBoxLayout()
+        self.setLayout(controls_layout)
+
+        self.message_box = QLabel()
+        self.message_box.setStyleSheet("background-color: yellow; color: black;")
+        self.message_box.setText("Connecting to sensor...")
+        self.message_box.setMaximumWidth(800)
+        self.message_box.setMinimumWidth(500)
+        self.message_box.setMinimumHeight(60)
+        self.message_box.setAlignment(Qt.AlignCenter)
+        controls_layout.addWidget(self.message_box, alignment=Qt.AlignCenter)
+
+        self.start_button = QPushButton("Start")
+        self.start_button.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
+        self.start_button.setMaximumWidth(500)
+        self.start_button.setMinimumWidth(100)
+        self.start_button.setMinimumHeight(30)
+        controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
+
+        self.spin_box = QSpinBox()
+        self.spin_box.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
+        self.spin_box.setRange(0, 100)
+        self.spin_box.setSingleStep(1)
+        self.spin_box.setValue(0)
+        self.spin_box.setMaximumWidth(200)
+        self.spin_box.setMinimumWidth(100)
+        self.spin_box.setMinimumHeight(30)
+        self.spin_box.setAlignment(Qt.AlignCenter)
+        controls_layout.addWidget(self.spin_box, alignment=Qt.AlignCenter)
+        self.spin_box.setEnabled(False)
+    
 class View(QChartView):
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.model = Model()
-        self.controls_widget = Controller()
-        self.model.sensorConnected.connect(self.sensorConnectedHandler)
-        self.controls_widget.beatCountingFinished.connect(self.beatCountingFinishedHandler)
-        self.controls_widget.beatEntered.connect(self.beatEnteredHandler)
-        self.model.beat_tracker.accuracyCalcuated.connect(self.accuracyCalculatedHandler)
+        self.controls_widget = ControlsWidget()
 
+        # Anything with .model. needs to go to Controller
         self.configureStylesheet()
         self.configureCharts()
         self.configureLayout()
-        self.configureSeriesTimer()
 
     def configureStylesheet(self):
         # Load the stylesheet from the file
@@ -61,63 +91,38 @@ class View(QChartView):
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
-    def configureSeriesTimer(self):
-        self.update_ecg_series_timer = QTimer()
-        self.update_ecg_series_timer.timeout.connect(self.update_ecg_series)
-        self.update_ecg_series_timer.setInterval(vars.UPDATE_ECG_SERIES_PERIOD)
-        self.update_ecg_series_timer.start()
-
-    @Slot()
-    def sensorConnectedHandler(self):
-        self.controls_widget.setStateReadyAfterDelay()
-
-    @Slot(float, float)
-    def beatCountingFinishedHandler(self, start_time, end_time):
-        self.model.beat_tracker.get_beat_count_from_wind(start_time, end_time)
-
-    @Slot(int)
-    def beatEnteredHandler(self, beat_count_entered):
-        self.model.beat_tracker.get_accuracy_score(beat_count_entered)
-
-    @Slot(float)
-    def accuracyCalculatedHandler(self, accuracy):
-        print(f"Accuracy: {accuracy:.3f}")
+    def control_ready_to_start(self):
+        self.controls_widget.message_box.setText("Press start and begin heart beat counting")
+        self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
+        self.controls_widget.start_button.setText("Start")
+        self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+        self.controls_widget.spin_box.setValue(0)
     
+    def control_recording_beats(self):
+        self.controls_widget.message_box.setText("Count your heart beats\nWithout checking your pulse")
+        self.controls_widget.message_box.setStyleSheet("background-color: red; color: white;")
+        self.controls_widget.spin_box.setEnabled(False)
+        self.controls_widget.spin_box.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
 
-    async def connect_polar(self):
+    def control_recording_input(self):
+        self.controls_widget.spin_box.setEnabled(True)
+        self.controls_widget.spin_box.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+        self.controls_widget.message_box.setText("Enter how many heart beats you counted")
+        self.controls_widget.message_box.setStyleSheet("background-color: green; color: white;")
+        self.controls_widget.start_button.setText("Submit")
 
-        polar_device_found = False
-        print("Looking for Polar device...")
-        while not polar_device_found:
+    def control_finished(self):
+        self.controls_widget.message_box.setText("Finished")
+        self.controls_widget.message_box.setStyleSheet("background-color: green; color: white;")
+        self.controls_widget.start_button.setText("Restart")
+        self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+        self.controls_widget.spin_box.setEnabled(False)
+        self.controls_widget.spin_box.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
 
-            devices = await BleakScanner.discover()
-            print(f"Found {len(devices)} BLE devices")
-            for device in devices:
-                if device.name is not None and "Polar" in device.name:
-                    polar_device_found = True
-                    print(f"Found Polar device")
-                    break
-            if not polar_device_found:
-                print("Polar device not found, retrying in 1 second")
-                await asyncio.sleep(1)
-        
-        self.model.set_polar_sensor(device)
-        await self.model.connect_sensor()
-
-    async def disconnect_polar(self):
-        await self.model.disconnect_sensor()
-
-    def update_ecg_series(self):
-            
-        self.ecg_times_rel_s = self.model.beat_tracker.ecg_times - time.time_ns()/1.0e9
+    def update_ecg_series(self, ecg_times_rel_s, ecg_hist):
         series_breath_acc_new = []
-
-        for i, value in enumerate(self.ecg_times_rel_s):
+        for i, value in enumerate(ecg_times_rel_s):
             if not np.isnan(value):
-                series_breath_acc_new.append(QPointF(value, self.model.beat_tracker.ecg_hist[i]))
+                series_breath_acc_new.append(QPointF(value, ecg_hist[i]))
         self.series_breath_acc.replace(series_breath_acc_new)
 
-    async def main(self):
-        await self.connect_polar()
-        await asyncio.gather(self.model.update_ecg())
-    

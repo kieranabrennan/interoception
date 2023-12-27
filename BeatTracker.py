@@ -33,7 +33,8 @@ class BeatTracker(QObject):
         self.plot_graph(wind_values, wind_times)
 
     def get_accuracy_score(self, beat_count_entered):
-        self.accuracyCalcuated.emit(1 - abs(self.beat_count - beat_count_entered)/(0.5*(self.beat_count + beat_count_entered)))
+        accuracy = 1 - abs(self.beat_count - beat_count_entered)/(0.5*(self.beat_count + beat_count_entered))
+        self.accuracyCalcuated.emit(accuracy)
 
     def plot_graph(self, wind_values, wind_times):
         plt.figure()
