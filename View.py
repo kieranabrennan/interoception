@@ -79,7 +79,11 @@ class View(QChartView):
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
         self.controls_widget.setInputWidgetState("confidence_scale")
 
-    def control_finished(self):
+    def control_results(self, beat_count_accuracy):
+        self.controls_widget.message_box.setText(f"Your accuracy was {beat_count_accuracy:.1f}")
+        self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
+        self.controls_widget.start_button.setText("Start again")
+        self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.setInputWidgetState("blank")
         pass
 
