@@ -213,3 +213,6 @@ class ConfidenceScale(QWidget):
         max_label.setFixedWidth(200)  # Set a fixed width
         max_label.setAlignment(Qt.AlignLeft)
         slider_layout.addWidget(max_label)
+
+    def value(self):
+        return self.slider.value()

@@ -24,7 +24,6 @@ class Controller:
         self.view.show()
 
         self.model.sensorConnected.connect(self.sensorConnectedHandler)
-        self.model.beat_tracker.accuracyCalcuated.connect(self.accuracyCalculatedHandler)
 
         self.state = ControlState.INITIALISING
 
@@ -42,14 +41,10 @@ class Controller:
     def sensorConnectedHandler(self):
         self.setStateReadyAfterDelay()
 
-    @Slot(float)
-    def accuracyCalculatedHandler(self, accuracy):
-        print(f"Accuracy: {accuracy:.3f}")
-
     @Slot()
     def countdownFinished(self):
-        self.state = ControlState.RECORDING_INPUT        
-        self.model.beat_tracker.get_beat_count_from_wind(self.record_start_time, time.time_ns()/1.0e9)
+        self.state = ControlState.RECORDING_INPUT       
+        self.model.getBeatCountMeasured(self.record_start_time, time.time_ns()/1.0e9)
         self.view.control_recording_input()
     
     def configureSeriesTimer(self):
@@ -81,10 +76,12 @@ class Controller:
             pass
         elif self.state == ControlState.RECORDING_INPUT:
             self.state = ControlState.RECORDING_CONFIDENCE
-            self.model.beat_tracker.get_accuracy_score(self.view.controls_widget.beat_count_input.value())
+            accuracy = self.model.getBeatCountAccuracy(self.view.controls_widget.beat_count_input.value())
+            print(f"Accuracy: {accuracy:.3f}")
             self.view.control_recording_confidence()
         elif self.state == ControlState.RECORDING_CONFIDENCE:
-
+            self.model.setBeatCountConfidence(self.view.controls_widget.confidence_scale.value())
+            self.model.saveBeatTrackingData()
             self.state = ControlState.FINISHED
         elif self.state == ControlState.FINISHED:
             self.state = ControlState.READY_TO_START
