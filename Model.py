@@ -7,6 +7,10 @@ from datetime import datetime
 import json
 import os
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+import matplotlib.pyplot as plt
+
 class Model(QObject):
     sensorConnected = Signal()
 
@@ -14,11 +18,7 @@ class Model(QObject):
         super().__init__()
         self.polar_sensor = None
         self.beat_tracker = BeatTracker()
-
-        self.beat_count_measured = None
-        self.beat_count_entered = None
-        self.beat_count_accuracy = None
-        self.beat_count_confidence = None
+        self.session_data = SessionData()
 
     def set_polar_sensor(self, device):
         self.polar_sensor = PolarH10(device)
@@ -63,40 +63,57 @@ class Model(QObject):
             while not self.polar_sensor.ecg_queue_is_empty():
                 self.beat_tracker.update_ecg_history(*self.polar_sensor.dequeue_ecg())
 
-    def getBeatCountMeasured(self, start_time, end_time):
-        self.beat_count_measured = self.beat_tracker.get_beat_count_from_wind(start_time, end_time)
-        return self.beat_count_measured
+    def calculateTrialResults(self, trial_length, start_time, end_time, count_estimated, confidence):
+        count_measured = self.beat_tracker.get_beat_count_from_wind(start_time, end_time)
+        accuracy = 1 - abs(count_measured - count_estimated)/(0.5*(count_measured + count_estimated))
         
-    def getBeatCountAccuracy(self, beat_count_entered):
-        self.beat_count_entered = beat_count_entered
-        self.beat_count_accuracy = 1 - abs(self.beat_count_measured - self.beat_count_entered)/(0.5*(self.beat_count_measured + self.beat_count_entered))
-        return self.beat_count_accuracy
+        trial_data = {"trial_length": trial_length, "count_measured": count_measured, "count_estimated": count_estimated, "accuracy": accuracy, "confidence": confidence}
+        self.session_data.append(trial_data)
 
-    def setBeatCountConfidence(self, beat_count_confidence):
-        self.beat_count_confidence = beat_count_confidence
+    def viewResults(self):
+        self.session_data.plotMeasuredAgainstEstimated()
+        self.session_data.plotAccuracyAgainstConfidence()
+        self.session_data.saveSessionData()
+        
 
-    def saveBeatTrackingData(self):
-        data = {
-            "Beat count measured": self.beat_count_measured,
-            "Beat count entered": self.beat_count_entered,
-            "Beat count accuracy": self.beat_count_accuracy,
-            "Beat count confidence": self.beat_count_confidence
-        }
+class SessionData:
+
+    def __init__(self):
+        self.trials = []
 
         data_folder = "data"
         if not os.path.exists(data_folder):
             os.makedirs(data_folder)
-
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        filename = f"beat_tracking_data_{timestamp}.json"
-        filepath = os.path.join(data_folder, filename)
+        filename = f"session_data_{timestamp}.json"
+        self.session_filepath = os.path.join(data_folder, filename)
 
-        with open(filepath, "w") as file:
-            json.dump(data, file, indent=4)
+    def append(self, trial_data):
+        self.trials.append(trial_data)
 
-        print(f"Data saved to {filepath}")
+    def plotMeasuredAgainstEstimated(self):
+        plt.figure()
+        plt.plot([trial["count_measured"] for trial in self.trials], [trial["count_estimated"] for trial in self.trials], "o")
+        plt.xlabel('Measured beat count')
+        plt.ylabel('Estimated beat count')
+        plt.title('Estimated vs Measured Beats')
+        plt.legend(["Measured", "Estimated"])
+        plt.show()
 
-                    
+    def plotAccuracyAgainstConfidence(self):
+        plt.figure()
+        plt.plot([trial["accuracy"] for trial in self.trials], [trial["confidence"] for trial in self.trials], "o")
+        plt.xlabel('Accuracy')
+        plt.ylabel('Confidence')
+        plt.title('Accuracy vs Confidence')
+        plt.legend(["Accuracy", "Confidence"])
+        plt.show()
 
+    def saveSessionData(self):
+        with open(self.session_filepath, "w") as file:
+            json.dump(self.trials, file, indent=4)
+
+        print(f"Data saved to {self.session_filepath}")
+    
 
     

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import neurokit2 as nk
 from PySide6.QtCore import QObject
-
+import vars
 ''' 
 BeatTracker class
 Tracks a rolling ecg signal history and calculate number of beats in a time window
@@ -35,7 +35,8 @@ class BeatTracker(QObject):
         print(f"End time error: {end_time-wind_times[-1]:.3f} s")
         print(f"Number of R peaks: {self.beat_count_measured:.0f}")
 
-        self.plot_graph(wind_values, wind_times)
+        if vars.SHOW_DEBUG_GRAPHS:
+            self.plot_graph(wind_values, wind_times)
 
         return self.beat_count_measured
 

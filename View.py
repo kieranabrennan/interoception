@@ -19,7 +19,6 @@ class View(QChartView):
         self.configureLayout()
 
     def configureStylesheet(self):
-        # Load the stylesheet from the file
         style_file = QFile("style.qss")
         style_file.open(QFile.ReadOnly | QFile.Text)
         stylesheet = style_file.readAll()
@@ -27,31 +26,37 @@ class View(QChartView):
         self.setStyleSheet(stylesheet)
 
     def configureCharts(self):
-        self.chart_acc = ChartUtils.create_chart(title='ECG', showTitle=False, showLegend=False)
+        self.chart_ecg = ChartUtils.create_chart(title='ECG', showTitle=False, showLegend=False)
         self.series_breath_acc = ChartUtils.create_line_series(vars.RED, vars.LINEWIDTH)
         self.axis_acc_x = ChartUtils.create_axis(title=None, tickCount=10, rangeMin=-vars.ECG_TIME_RANGE, rangeMax=0, labelSize=10, flip=False)
         self.axis_y_breath_acc = ChartUtils.create_axis("ECG (mV)", vars.RED, rangeMin=-500, rangeMax=1600, labelSize=10)
 
-        self.chart_acc.addSeries(self.series_breath_acc)
-        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
-        self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
+        self.chart_ecg.addSeries(self.series_breath_acc)
+        self.chart_ecg.addAxis(self.axis_acc_x, Qt.AlignBottom)
+        self.chart_ecg.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
         self.series_breath_acc.attachAxis(self.axis_acc_x)
         self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
         
     def configureLayout(self):
         layout = QVBoxLayout()
 
-        acc_widget = QChartView(self.chart_acc)
-        acc_widget.setStyleSheet("background-color: transparent;")
-        acc_widget.setRenderHint(QPainter.Antialiasing)
+        ecg_widget = QChartView(self.chart_ecg)
+        ecg_widget.setStyleSheet("background-color: transparent;")
+        ecg_widget.setRenderHint(QPainter.Antialiasing)
         
-        layout.addWidget(acc_widget, stretch=3)
+        layout.addWidget(ecg_widget, stretch=3)
         layout.addWidget(self.controls_widget, stretch=1)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
-    def control_ready_to_start(self):
-        self.controls_widget.message_box.setText("Press start and begin heart beat counting")
+    def control_session_intro(self, trials_per_session):
+        self.controls_widget.message_box.setText(f"There will be {trials_per_session} sessions\nDuring each you will count your heart beats without taking your pulse\nAt the end you will enter the number you counted\n and the confidence in your estimate")
+        self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
+        self.controls_widget.start_button.setText("Continue")
+        self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
+
+    def control_ready_to_start(self, trial_no, trials_per_session):
+        self.controls_widget.message_box.setText(f"Ready to start trial {trial_no} of {trials_per_session}\nBegin counting your heartbeats as soon as you press start")
         self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
         self.controls_widget.start_button.setText("Start")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
@@ -62,6 +67,7 @@ class View(QChartView):
         self.controls_widget.message_box.setText("Count your heart beats\nWithout checking your pulse")
         self.controls_widget.message_box.setStyleSheet("background-color: red; color: white;")
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
+        self.controls_widget.start_button.setStyleSheet("background-color: white; color: white; border: 1px solid white;")
         self.controls_widget.setInputWidgetState("blank")
 
     def control_recording_input(self):
@@ -69,6 +75,7 @@ class View(QChartView):
         self.controls_widget.message_box.setText("Enter how many heart beats you counted")
         self.controls_widget.message_box.setStyleSheet("background-color: green; color: white;")
         self.controls_widget.start_button.setText("Submit")
+        self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.setInputWidgetState("beat_count_input")
 
     def control_recording_confidence(self):
@@ -79,8 +86,8 @@ class View(QChartView):
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
         self.controls_widget.setInputWidgetState("confidence_scale")
 
-    def control_results(self, beat_count_accuracy):
-        self.controls_widget.message_box.setText(f"Your accuracy was {beat_count_accuracy:.1f}")
+    def control_results(self):
+        self.controls_widget.message_box.setText(f"This is where results will be displayed")
         self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
         self.controls_widget.start_button.setText("Start again")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
@@ -109,8 +116,9 @@ class ControlsWidget(QWidget):
         controls_layout = QVBoxLayout()
         self.setLayout(controls_layout)
         controls_layout.addWidget(self.message_box, alignment=Qt.AlignCenter)
-        controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
         controls_layout.addWidget(self.input_widget, alignment=Qt.AlignCenter)
+        controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
+        controls_layout.addItem(QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
     def configureMessageBox(self):
         self.message_box = QLabel()
@@ -118,12 +126,12 @@ class ControlsWidget(QWidget):
         self.message_box.setText("Connecting to sensor...")
         self.message_box.setMaximumWidth(800)
         self.message_box.setMinimumWidth(500)
-        self.message_box.setMinimumHeight(60)
+        self.message_box.setMinimumHeight(120)
         self.message_box.setAlignment(Qt.AlignCenter)
         
     def configureStartButton(self):
-        self.start_button = QPushButton("Start")
-        self.start_button.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
+        self.start_button = QPushButton("Continue")
+        self.start_button.setStyleSheet("background-color: white; color: white; border: 1px solid white;")
         self.start_button.setMaximumWidth(500)
         self.start_button.setMinimumWidth(100)
         self.start_button.setMinimumHeight(30)
@@ -145,7 +153,6 @@ class ControlsWidget(QWidget):
         self.input_widget.addWidget(self.confidence_scale)
         self.input_widget.addWidget(self.blank_widget)
         self.setInputWidgetState("blank")
-
 
 class BeatCountInput(QWidget):
 

@@ -1,5 +1,8 @@
 from PySide6.QtGui import QColor
 
+TRIAL_LENGTHS_S = [25, 30, 35, 40, 45, 50]
+# TRIAL_LENGTHS_S = [10, 5]
+
 RED = QColor(200, 30, 45)
 YELLOW = QColor(254, 191, 0)
 ORANGE = QColor(255, 130, 0)
@@ -12,3 +15,5 @@ DOTSIZE_SMALL = 4
 DOTSIZE_LARGE = 5
 UPDATE_ECG_SERIES_PERIOD = 1 # ms
 ECG_TIME_RANGE = 20 # s
+
+SHOW_DEBUG_GRAPHS = False
