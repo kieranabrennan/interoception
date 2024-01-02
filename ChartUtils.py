@@ -48,19 +48,22 @@ class ChartUtils:
         return series
 
     @staticmethod
-    def create_axis(title=None, color=None, tickCount=None, rangeMin=None, rangeMax=None, labelSize=None, flip=False):
+    def create_axis(title=None, color=None, tickCount=None, rangeMin=None\
+                    , rangeMax=None, labelSize=None, flip=False, labelsVisible=True, axisVisible=True):
         if color is None:
             color = QColor(34, 34, 34)
         axis = QValueAxis()
         axis.setTitleText(title)
+        axis.setLabelsVisible(labelsVisible) 
+        axis.setVisible(axisVisible)
         axis.setLabelsColor(color)
         axis.setTitleBrush(color)
         axis.setGridLineVisible(False)
         if tickCount:
             axis.setTickCount(tickCount)
-        if rangeMin:
+        if rangeMin is not None:
             axis.setMin(rangeMin)
-        if rangeMax:
+        if rangeMax is not None:
             axis.setMax(rangeMax)
         if labelSize:
             font = QFont()

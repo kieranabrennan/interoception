@@ -23,7 +23,7 @@ class Controller:
         self.view = View()
 
         self.view.setWindowTitle("Beat Tracker")
-        self.view.resize(1200, 600)
+        self.view.resize(800, 500)
         self.view.show()
 
         self.state = ControlState.SCANNING

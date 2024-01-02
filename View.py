@@ -2,7 +2,7 @@
 from PySide6.QtCore import Qt, QPointF, QFile
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QPushButton, QWidget, QSlider, QSizePolicy, QStackedWidget, QSpacerItem 
 from PySide6.QtCharts import QChartView
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QPainter, QColor
 import numpy as np
 from ChartUtils import ChartUtils
 import vars
@@ -26,16 +26,16 @@ class View(QChartView):
         self.setStyleSheet(stylesheet)
 
     def configureCharts(self):
-        self.chart_ecg = ChartUtils.create_chart(title='ECG', showTitle=False, showLegend=False)
-        self.series_breath_acc = ChartUtils.create_line_series(vars.RED, vars.LINEWIDTH)
-        self.axis_acc_x = ChartUtils.create_axis(title=None, tickCount=10, rangeMin=-vars.ECG_TIME_RANGE, rangeMax=0, labelSize=10, flip=False)
-        self.axis_y_breath_acc = ChartUtils.create_axis("ECG (mV)", vars.RED, rangeMin=-500, rangeMax=1600, labelSize=10)
+        self.chart_ecg = ChartUtils.create_chart(title='', showTitle=False, showLegend=False)
+        self.series_breath_acc = ChartUtils.create_line_series(QColor(*vars.RED), vars.LINEWIDTH)
+        self.axis_x = ChartUtils.create_axis(title=None, tickCount=10, rangeMin=-vars.ECG_TIME_RANGE, rangeMax=0, labelSize=10, flip=False, labelsVisible=False, axisVisible=False)
+        self.axis_y = ChartUtils.create_axis("", QColor(*vars.RED), rangeMin=-500, rangeMax=1600, labelSize=10, labelsVisible=False, axisVisible=False)
 
         self.chart_ecg.addSeries(self.series_breath_acc)
-        self.chart_ecg.addAxis(self.axis_acc_x, Qt.AlignBottom)
-        self.chart_ecg.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
-        self.series_breath_acc.attachAxis(self.axis_acc_x)
-        self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
+        self.chart_ecg.addAxis(self.axis_x, Qt.AlignBottom)
+        self.chart_ecg.addAxis(self.axis_y, Qt.AlignRight)
+        self.series_breath_acc.attachAxis(self.axis_x)
+        self.series_breath_acc.attachAxis(self.axis_y)
         
     def configureLayout(self):
         layout = QVBoxLayout()
@@ -44,51 +44,58 @@ class View(QChartView):
         ecg_widget.setStyleSheet("background-color: transparent;")
         ecg_widget.setRenderHint(QPainter.Antialiasing)
         
-        layout.addWidget(ecg_widget, stretch=3)
-        layout.addWidget(self.controls_widget, stretch=1)
+        layout.addWidget(ecg_widget, stretch=1)
+        layout.addWidget(self.controls_widget, stretch=3)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
+        self.chart_ecg.setVisible(True)
 
     def control_session_intro(self, trials_per_session):
+        self.chart_ecg.setVisible(True)
         self.controls_widget.message_box.setText(f"There will be {trials_per_session} sessions\nDuring each you will count your heart beats without taking your pulse\nAt the end you will enter the number you counted\n and the confidence in your estimate")
-        self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
+        self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.GREEN[0]}, {vars.GREEN[1]}, {vars.GREEN[2]}); color: black;")
         self.controls_widget.start_button.setText("Continue")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
 
     def control_ready_to_start(self, trial_no, trials_per_session):
+        self.chart_ecg.setVisible(True)
         self.controls_widget.message_box.setText(f"Ready to start trial {trial_no} of {trials_per_session}\nBegin counting your heartbeats as soon as you press start")
-        self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
+        self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.GREEN[0]}, {vars.GREEN[1]}, {vars.GREEN[2]}); color: black;")
         self.controls_widget.start_button.setText("Start")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.beat_count_input.setValue(0)
         self.controls_widget.setInputWidgetState("blank")
     
     def control_recording_beats(self):
+        self.chart_ecg.setVisible(False)
         self.controls_widget.message_box.setText("Count your heart beats\nWithout checking your pulse")
-        self.controls_widget.message_box.setStyleSheet("background-color: red; color: white;")
+        self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.RED[0]}, {vars.RED[1]}, {vars.RED[2]}); color: white;")
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: white; border: 1px solid white;")
         self.controls_widget.setInputWidgetState("blank")
 
     def control_recording_input(self):
+        self.chart_ecg.setVisible(True)
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.message_box.setText("Enter how many heart beats you counted")
-        self.controls_widget.message_box.setStyleSheet("background-color: green; color: white;")
+        self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.GREEN[0]}, {vars.GREEN[1]}, {vars.GREEN[2]}); color: white;")
         self.controls_widget.start_button.setText("Submit")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.setInputWidgetState("beat_count_input")
 
     def control_recording_confidence(self):
+        self.chart_ecg.setVisible(True)
         self.controls_widget.message_box.setText("Select how confident you are in your beat count on the scale")
-        self.controls_widget.message_box.setStyleSheet("background-color: yellow; color: black;")
+        self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.YELLOW[0]}, {vars.YELLOW[1]}, {vars.YELLOW[2]}); color: black;")
         self.controls_widget.start_button.setText("Submit")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
         self.controls_widget.setInputWidgetState("confidence_scale")
 
     def control_results(self):
+        self.chart_ecg.setVisible(True)
         self.controls_widget.message_box.setText(f"This is where results will be displayed")
-        self.controls_widget.message_box.setStyleSheet("background-color: green; color: black;")
+        self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.GREEN[0]}, {vars.GREEN[1]}, {vars.GREEN[2]}); color: black;")
         self.controls_widget.start_button.setText("Start again")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
         self.controls_widget.setInputWidgetState("blank")
@@ -118,12 +125,12 @@ class ControlsWidget(QWidget):
         controls_layout.addWidget(self.message_box, alignment=Qt.AlignCenter)
         controls_layout.addWidget(self.input_widget, alignment=Qt.AlignCenter)
         controls_layout.addWidget(self.start_button, alignment=Qt.AlignCenter)
-        controls_layout.addItem(QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        controls_layout.addItem(QSpacerItem(0, 40, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
     def configureMessageBox(self):
         self.message_box = QLabel()
-        self.message_box.setStyleSheet("background-color: yellow; color: black;")
-        self.message_box.setText("Connecting to sensor...")
+        self.message_box.setStyleSheet(f"background-color: rgb({vars.YELLOW[0]}, {vars.YELLOW[1]}, {vars.YELLOW[2]}); color: black;")
+        self.message_box.setText("Scanning for Polar H10 Heart rate monitors...")
         self.message_box.setMaximumWidth(800)
         self.message_box.setMinimumWidth(500)
         self.message_box.setMinimumHeight(120)

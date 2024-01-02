@@ -63,11 +63,12 @@ class Model(QObject):
             while not self.polar_sensor.ecg_queue_is_empty():
                 self.beat_tracker.update_ecg_history(*self.polar_sensor.dequeue_ecg())
 
-    def calculateTrialResults(self, trial_length, start_time, end_time, count_estimated, confidence):
+    def calculateTrialResults(self, trial_length, start_time, end_time, count_entered, confidence):
         count_measured = self.beat_tracker.get_beat_count_from_wind(start_time, end_time)
-        accuracy = 1 - abs(count_measured - count_estimated)/(0.5*(count_measured + count_estimated))
+        accuracy = 1 - abs(count_measured - count_entered)/(0.5*(count_measured + count_entered))
         
-        trial_data = {"trial_length": trial_length, "count_measured": count_measured, "count_estimated": count_estimated, "accuracy": accuracy, "confidence": confidence}
+        trial_data = {"trial_length": int(trial_length), "count_measured": int(count_measured), \
+                      "count_entered": int(count_entered), "accuracy": float(accuracy), "confidence": float(confidence)}
         self.session_data.append(trial_data)
 
     def viewResults(self):
@@ -93,11 +94,13 @@ class SessionData:
 
     def plotMeasuredAgainstEstimated(self):
         plt.figure()
-        plt.plot([trial["count_measured"] for trial in self.trials], [trial["count_estimated"] for trial in self.trials], "o")
+        plt.plot([trial["count_measured"] for trial in self.trials], [trial["count_entered"] for trial in self.trials], "o")
         plt.xlabel('Measured beat count')
         plt.ylabel('Estimated beat count')
         plt.title('Estimated vs Measured Beats')
         plt.legend(["Measured", "Estimated"])
+        plt.xlim([0, 70])
+        plt.ylim([0, 70])
         plt.show()
 
     def plotAccuracyAgainstConfidence(self):
@@ -107,9 +110,13 @@ class SessionData:
         plt.ylabel('Confidence')
         plt.title('Accuracy vs Confidence')
         plt.legend(["Accuracy", "Confidence"])
+        plt.xlim([0, 1])
+        plt.ylim([0, 1])
         plt.show()
 
     def saveSessionData(self):
+
+        print(f"Saving data:\nself.trials: {self.trials}")
         with open(self.session_filepath, "w") as file:
             json.dump(self.trials, file, indent=4)
 

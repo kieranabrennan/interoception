@@ -14,7 +14,7 @@ class BeatTracker(QObject):
 
     def __init__(self):
         super().__init__()
-        self.ECG_HIST_SIZE = 2400 # Number of samples to keep in the history
+        self.ECG_HIST_SIZE = 24000 # 3 minutes of history at 130 Hz
         self.ecg_hist = np.full(self.ECG_HIST_SIZE, np.nan)
         self.ecg_times = np.full(self.ECG_HIST_SIZE, np.nan)
         
@@ -29,29 +29,28 @@ class BeatTracker(QObject):
 
     def get_beat_count_from_wind(self, start_time, end_time):
         wind_values, wind_times = self.get_ecg_wind(start_time, end_time)
-        self.beat_count_measured = self.get_beat_count(wind_values, 130)
+        ecg_peaks = nk.ecg_findpeaks(wind_values, sampling_rate=130) 
+        r_peak_ids = ecg_peaks['ECG_R_Peaks']
+        self.beat_count_measured = len(r_peak_ids)
+        print(f"R peaks: {r_peak_ids}")
         # Show the start time error to 3 dp
         print(f"Start time error: {start_time-wind_times[0]:.3f} s")
         print(f"End time error: {end_time-wind_times[-1]:.3f} s")
         print(f"Number of R peaks: {self.beat_count_measured:.0f}")
 
         if vars.SHOW_DEBUG_GRAPHS:
-            self.plot_graph(wind_values, wind_times)
+            self.plot_graph(wind_values, wind_times, r_peak_ids)
 
         return self.beat_count_measured
 
-    def plot_graph(self, wind_values, wind_times):
+    def plot_graph(self, wind_values, wind_times, r_peak_ids):
         plt.figure()
         plt.plot(wind_times, wind_values)
+        plt.scatter(wind_times[r_peak_ids], wind_values[r_peak_ids], c='r', marker='x')
         plt.xlabel('Time')
         plt.ylabel('ECG Value')
         plt.title('ECG Plot')
         plt.show()
-
-    def get_beat_count(self, ecg, sampling_rate):
-        peaks = nk.ecg_findpeaks(ecg, sampling_rate=sampling_rate) 
-        r_peaks = peaks['ECG_R_Peaks']
-        return len(r_peaks)
 
     def get_ecg_wind(self, start_time, end_time):
         indices = np.where((self.ecg_times >= start_time) & (self.ecg_times <= end_time))
