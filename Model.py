@@ -6,6 +6,10 @@ from bleak import BleakScanner
 from datetime import datetime
 import json
 import os
+import scipy.stats
+import numpy as np
+import pandas as pd
+import vars
 
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -19,6 +23,7 @@ class Model(QObject):
         self.polar_sensor = None
         self.beat_tracker = BeatTracker()
         self.session_data = SessionData()
+        self.reference_data = ReferenceData()
 
     def set_polar_sensor(self, device):
         self.polar_sensor = PolarH10(device)
@@ -71,9 +76,15 @@ class Model(QObject):
                       "count_entered": int(count_entered), "accuracy": float(accuracy), "confidence": float(confidence)}
         self.session_data.append(trial_data)
 
+    def calculateSessionResults(self):
+        return {"accuracy_score": self.session_data.calculateAverageAccuracy(), \
+                "accuracy_percentile": self.reference_data.calculateAccuracyPercentile(self.session_data.calculateAverageAccuracy()), \
+                "awareness_score": self.session_data.calculateAwareness(), \
+                "awareness_percentile": self.reference_data.calculateAwarenessPercentile(self.session_data.calculateAwareness()) }
+
     def viewResults(self):
-        self.session_data.plotMeasuredAgainstEstimated()
-        self.session_data.plotAccuracyAgainstConfidence()
+        
+        self.session_data.plotSessionSummaryGraphs()
         self.session_data.saveSessionData()
         
 
@@ -81,6 +92,7 @@ class SessionData:
 
     def __init__(self):
         self.trials = []
+        self.averageAccuracy = None
 
         data_folder = "data"
         if not os.path.exists(data_folder):
@@ -92,25 +104,29 @@ class SessionData:
     def append(self, trial_data):
         self.trials.append(trial_data)
 
-    def plotMeasuredAgainstEstimated(self):
-        plt.figure()
+    def calculateAverageAccuracy(self):
+        self.averageAccuracy = np.mean([trial["accuracy"] for trial in self.trials])
+        return self.averageAccuracy
+
+    def calculateAwareness(self):
+        awareness, p_value = scipy.stats.pearsonr([trial["confidence"] for trial in self.trials], [trial["accuracy"] for trial in self.trials])
+        return awareness
+    
+    def plotSessionSummaryGraphs(self):
+        plt.figure(figsize=(10, 5))
+        plt.subplot(1, 2, 1)
         plt.plot([trial["count_measured"] for trial in self.trials], [trial["count_entered"] for trial in self.trials], "o")
         plt.xlabel('Measured beat count')
         plt.ylabel('Estimated beat count')
-        plt.title('Estimated vs Measured Beats')
-        plt.legend(["Measured", "Estimated"])
+        plt.title(f"Average accuracy: {np.mean([trial['accuracy'] for trial in self.trials]):.2f}")
         plt.xlim([0, 70])
         plt.ylim([0, 70])
-        plt.show()
-
-    def plotAccuracyAgainstConfidence(self):
-        plt.figure()
-        plt.plot([trial["accuracy"] for trial in self.trials], [trial["confidence"] for trial in self.trials], "o")
-        plt.xlabel('Accuracy')
-        plt.ylabel('Confidence')
-        plt.title('Accuracy vs Confidence')
-        plt.legend(["Accuracy", "Confidence"])
-        plt.xlim([0, 1])
+        plt.subplot(1, 2, 2)
+        plt.plot([trial["confidence"] for trial in self.trials], [trial["accuracy"] for trial in self.trials], "o")
+        plt.xlabel('Confidence')
+        plt.ylabel('Accuracy')
+        plt.title(f"Awareness: {self.calculateAwareness():.2f}")
+        plt.xlim([0, 10])
         plt.ylim([0, 1])
         plt.show()
 
@@ -123,4 +139,97 @@ class SessionData:
         print(f"Data saved to {self.session_filepath}")
     
 
+class ReferenceData:
+
+    def __init__(self):
+        self.df_accuracy_awareness = None
+        self.df_accuracy_confidence = None
+        self.loadReferenceData()
+        if vars.SHOW_DEBUG_GRAPHS:
+            self.plotReferenceData()
+
+    def calculateAccuracyPercentile(self, accuracy):
+        return scipy.stats.percentileofscore(self.df_accuracy_awareness["accuracy"], accuracy)
     
+    def calculateAwarenessPercentile(self, awareness):
+        return scipy.stats.percentileofscore(self.df_accuracy_awareness["awareness"], awareness)
+
+    def loadReferenceData(self):
+        df_acc_aw_highacc =  pd.read_csv("reference/accuracy-awareness_high-acc.csv")
+        df_acc_aw_lowacc =  pd.read_csv("reference/accuracy-awareness_low-acc.csv")
+        df_acc_aw_highacc["group"] = "high-accuracy"
+        df_acc_aw_lowacc["group"] = "low-accuracy"
+        self.df_accuracy_awareness = pd.concat([df_acc_aw_highacc, df_acc_aw_lowacc])
+
+        df_acc_con_highacc =  pd.read_csv("reference/accuracy-confidence_high-acc.csv")
+        df_acc_con_lowacc =  pd.read_csv("reference/accuracy-confidence_low-acc.csv")
+        df_acc_con_highacc["group"] = "high-accuracy"
+        df_acc_con_lowacc["group"] = "low-accuracy"
+        self.df_accuracy_confidence = pd.concat([df_acc_con_highacc, df_acc_con_lowacc])
+
+        # print the first few lines of the dataframes
+        print(f"df_accuracy_awareness:\n{self.df_accuracy_awareness.head()}")
+        print(f"df_accuracy_confidence:\n{self.df_accuracy_confidence.head()}")
+        print(self.df_accuracy_awareness.columns)
+
+
+    def plotReferenceData(self):
+        plt.figure(figsize=(10, 5))
+        plt.subplot(2, 2, 1)
+        # Histogram of accuracy coloured by group
+        plt.hist([self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="high-accuracy"]["accuracy"], \
+                  self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="low-accuracy"]["accuracy"]], \
+                  bins=10, stacked=True, label=["high-accuracy", "low-accuracy"])
+        plt.xlabel('Accuracy')
+        plt.ylabel('Count')
+        plt.title("Accuracy Awareness Data")
+
+        plt.subplot(2, 2, 2)
+        plt.hist([self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="high-accuracy"]["accuracy"], \
+                  self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="low-accuracy"]["accuracy"]], \
+                  bins=10, stacked=True, label=["high-accuracy", "low-accuracy"])
+        plt.xlabel('Accuracy')
+        plt.ylabel('Count')
+        plt.title("Accuracy Confidence Data")
+        
+        plt.subplot(2, 2, 3)
+        plt.hist([self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="high-accuracy"]["awareness"], \
+                  self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="low-accuracy"]["awareness"]], \
+                  bins=10, stacked=True, label=["high-accuracy", "low-accuracy"])
+        plt.xlabel('Awareness')
+        plt.ylabel('Count')
+
+        plt.subplot(2, 2, 4)
+        plt.hist([self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="high-accuracy"]["confidence"], \
+                  self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="low-accuracy"]["confidence"]], \
+                  bins=10, stacked=True, label=["high-accuracy", "low-accuracy"])
+        plt.xlabel('Confidence')
+        plt.ylabel('Count')
+        
+        plt.show()
+
+        plt.figure(figsize=(10, 5))
+        # Plot accuracy against awareness coloured by group
+        plt.subplot(1, 2, 1)
+        plt.scatter(self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="high-accuracy"]["awareness"], \
+                    self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="high-accuracy"]["accuracy"], \
+                    c="r", label="high-accuracy")
+        plt.scatter(self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="low-accuracy"]["awareness"], \
+                    self.df_accuracy_awareness[self.df_accuracy_awareness["group"]=="low-accuracy"]["accuracy"], \
+                    c="b", label="low-accuracy")
+        plt.xlabel('Awareness')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        plt.title("Accuracy Awareness Data")
+        plt.subplot(1, 2, 2)
+        plt.scatter(self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="high-accuracy"]["confidence"], \
+                    self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="high-accuracy"]["accuracy"], \
+                    c="r", label="high-accuracy")
+        plt.scatter(self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="low-accuracy"]["confidence"], \
+                    self.df_accuracy_confidence[self.df_accuracy_confidence["group"]=="low-accuracy"]["accuracy"], \
+                    c="b", label="low-accuracy")
+        plt.xlabel('Confidence')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        plt.title("Accuracy Confidence Data")
+        plt.show()

@@ -6,6 +6,12 @@ from Model import Model
 from View import View
 import numpy as np
 import vars
+
+'''
+TODO:
+- Calculate awareness metric as pearson correlation between confidence and accuracy
+- Transcribe the data from the paper
+'''
 class ControlState(Enum):
     SCANNING = 1
     INITIALISING = 2
@@ -114,6 +120,7 @@ class Controller:
         self.recording_timer.initTimer(self.trial_lengths_s[self.trial_id])
         self.view.control_ready_to_start(self.trial_id+1, self.trials_per_session)
         self.record_start_time = None
+        self.record_end_time = None
         self.beat_count_estimate = None
 
     def enterRecordingBeatsState(self):
@@ -122,6 +129,7 @@ class Controller:
         self.record_start_time = time.time_ns()/1.0e9
 
     def enterRecordingInputState(self):
+        self.record_end_time = time.time_ns()/1.0e9
         self.view.control_recording_input()
 
     def enterRecordingConfidenceState(self):
@@ -129,11 +137,13 @@ class Controller:
         self.view.control_recording_confidence()
 
     def exitRecordingConfidenceState(self):
-        self.model.calculateTrialResults(self.trial_lengths_s[self.trial_id], self.record_start_time, time.time_ns()/1.0e9, \
+        self.model.calculateTrialResults(self.trial_lengths_s[self.trial_id], self.record_start_time, self.record_end_time, \
                                          self.beat_count_estimate, self.view.controls_widget.confidence_scale.value())
 
     def enterResultsState(self):
-        self.view.control_results()
+        session_results = self.model.calculateSessionResults()
+        self.view.control_results(session_results["accuracy_score"], session_results["accuracy_percentile"], \
+                                  session_results["awareness_score"], session_results["awareness_percentile"])
         self.model.viewResults()
         
     # View update functions

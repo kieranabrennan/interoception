@@ -92,9 +92,9 @@ class View(QChartView):
         self.controls_widget.beat_count_input.setStyleSheet("background-color: white; color: grey; border: 1px solid grey;")
         self.controls_widget.setInputWidgetState("confidence_scale")
 
-    def control_results(self):
+    def control_results(self, accuracy_score, accuracy_percentile, awareness_score, awareness_percentile):
         self.chart_ecg.setVisible(True)
-        self.controls_widget.message_box.setText(f"This is where results will be displayed")
+        self.controls_widget.message_box.setText(f"Your average accuracy was: {accuracy_score:.2f} ({accuracy_percentile:.0f}th percentile)\nYour awareness score is: {awareness_score:.2f} ({awareness_percentile:.0f}th percentile)")
         self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.GREEN[0]}, {vars.GREEN[1]}, {vars.GREEN[2]}); color: black;")
         self.controls_widget.start_button.setText("Start again")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
