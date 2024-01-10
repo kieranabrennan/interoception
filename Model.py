@@ -23,7 +23,9 @@ class Model(QObject):
         self.polar_sensor = None
         self.beat_tracker = BeatTracker()
         self.session_data = SessionData()
-        self.reference_data = ReferenceData()
+
+    def resetSession(self):
+        self.session_data.resetSession()
 
     def set_polar_sensor(self, device):
         self.polar_sensor = PolarH10(device)
@@ -72,15 +74,25 @@ class Model(QObject):
         count_measured = self.beat_tracker.get_beat_count_from_wind(start_time, end_time)
         accuracy = 1 - abs(count_measured - count_entered)/(0.5*(count_measured + count_entered))
         
-        trial_data = {"trial_length": int(trial_length), "count_measured": int(count_measured), \
-                      "count_entered": int(count_entered), "accuracy": float(accuracy), "confidence": float(confidence)}
+        trial_data = {"trial_length": int(trial_length), \
+                        "count_measured": int(count_measured), \
+                        "count_entered": int(count_entered), \
+                        "accuracy": float(accuracy), \
+                        "confidence": float(confidence)}
         self.session_data.append(trial_data)
 
     def calculateSessionResults(self):
-        return {"accuracy_score": self.session_data.calculateAverageAccuracy(), \
-                "accuracy_percentile": self.reference_data.calculateAccuracyPercentile(self.session_data.calculateAverageAccuracy()), \
-                "awareness_score": self.session_data.calculateAwareness(), \
-                "awareness_percentile": self.reference_data.calculateAwarenessPercentile(self.session_data.calculateAwareness()) }
+        
+        average_accuracy = self.session_data.calculateAverageAccuracy()
+        accuracy_percentile = self.session_data.calculateAccuracyPercentile()
+        awareness_score, awareness_p_value = self.session_data.calculateAwareness()
+        awareness_percentile = self.session_data.calculateAwarenessPercentile()
+
+        return {"accuracy_score": average_accuracy, \
+                "accuracy_percentile": accuracy_percentile, \
+                "awareness_score": awareness_score, \
+                "awareness_p_value": awareness_p_value, \
+                "awareness_percentile": awareness_percentile}
 
     def viewResults(self):
         
@@ -91,8 +103,14 @@ class Model(QObject):
 class SessionData:
 
     def __init__(self):
+        
+        self.reference_data = ReferenceData()
         self.trials = []
-        self.averageAccuracy = None
+        self.average_accuracy = None
+        self.awareness_score = None
+        self.awareness_p_value = None
+        self.accuracy_percentile = None
+        self.awareness_percentile = None
 
         data_folder = "data"
         if not os.path.exists(data_folder):
@@ -101,17 +119,54 @@ class SessionData:
         filename = f"session_data_{timestamp}.json"
         self.session_filepath = os.path.join(data_folder, filename)
 
+    def resetSession(self):
+        self.trials = []
+        self.average_accuracy = None
+        self.awareness_score = None
+
     def append(self, trial_data):
         self.trials.append(trial_data)
 
     def calculateAverageAccuracy(self):
-        self.averageAccuracy = np.mean([trial["accuracy"] for trial in self.trials])
-        return self.averageAccuracy
+        self.average_accuracy = np.mean([trial["accuracy"] for trial in self.trials])
+        return self.average_accuracy
 
     def calculateAwareness(self):
-        awareness, p_value = scipy.stats.pearsonr([trial["confidence"] for trial in self.trials], [trial["accuracy"] for trial in self.trials])
-        return awareness
+        self.awareness_score, self.awareness_p_value = scipy.stats.pearsonr([trial["confidence"] for trial in self.trials], [trial["accuracy"] for trial in self.trials])
+        return self.awareness_score, self.awareness_p_value
     
+    def calculateAccuracyPercentile(self):
+        if self.average_accuracy is None:
+            self.calculateAverageAccuracy()
+        self.accuracy_percentile = self.reference_data.calculateAccuracyPercentile(self.average_accuracy)
+        return self.accuracy_percentile
+
+    def calculateAwarenessPercentile(self):
+        if self.awareness_score is None:
+            self.calculateAwareness()
+        self.awareness_percentile = self.reference_data.calculateAwarenessPercentile(self.awareness_score)
+        return self.awareness_percentile
+
+    def saveSessionData(self):
+        if self.accuracy_percentile is None:
+            self.calculateAccuracyPercentile()
+        if self.awareness_percentile is None:
+            self.calculateAwarenessPercentile()
+
+        self.session_summary = {"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), \
+                                "trial_lengths": [trial["trial_length"] for trial in self.trials], \
+                                "average_accuracy": self.average_accuracy, \
+                                "accuracy_percentile": self.accuracy_percentile, \
+                                "awareness_score": self.awareness_score, \
+                                "awareness_p_value": self.awareness_p_value, \
+                                "awareness_percentile": self.awareness_percentile}
+
+        print(f"Saving session summary data:\nself.trials: {self.session_summary}")
+        with open(self.session_filepath, "w") as file:
+            json.dump(self.session_summary, file, indent=4)
+
+        print(f"Data saved to {self.session_filepath}")
+
     def plotSessionSummaryGraphs(self):
         plt.figure(figsize=(10, 5))
         plt.subplot(1, 2, 1)
@@ -125,18 +180,10 @@ class SessionData:
         plt.plot([trial["confidence"] for trial in self.trials], [trial["accuracy"] for trial in self.trials], "o")
         plt.xlabel('Confidence')
         plt.ylabel('Accuracy')
-        plt.title(f"Awareness: {self.calculateAwareness():.2f}")
+        plt.title(f"Awareness: {self.awareness_score:.2f}")
         plt.xlim([0, 10])
         plt.ylim([0, 1])
         plt.show()
-
-    def saveSessionData(self):
-
-        print(f"Saving data:\nself.trials: {self.trials}")
-        with open(self.session_filepath, "w") as file:
-            json.dump(self.trials, file, indent=4)
-
-        print(f"Data saved to {self.session_filepath}")
     
 
 class ReferenceData:
@@ -166,12 +213,6 @@ class ReferenceData:
         df_acc_con_highacc["group"] = "high-accuracy"
         df_acc_con_lowacc["group"] = "low-accuracy"
         self.df_accuracy_confidence = pd.concat([df_acc_con_highacc, df_acc_con_lowacc])
-
-        # print the first few lines of the dataframes
-        print(f"df_accuracy_awareness:\n{self.df_accuracy_awareness.head()}")
-        print(f"df_accuracy_confidence:\n{self.df_accuracy_confidence.head()}")
-        print(self.df_accuracy_awareness.columns)
-
 
     def plotReferenceData(self):
         plt.figure(figsize=(10, 5))

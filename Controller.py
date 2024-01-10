@@ -113,6 +113,7 @@ class Controller:
     
     def enterSessionIntroState(self):
         self.view.control_session_intro(self.trial_lengths_s)
+        self.model.resetSession()
         self.trial_id = -1
 
     def enterReadyToStartState(self):
