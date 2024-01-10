@@ -9,8 +9,8 @@ import vars
 
 '''
 TODO:
-- Calculate awareness metric as pearson correlation between confidence and accuracy
-- Transcribe the data from the paper
+- Save the Accuracy and Awareness scores to a file
+- Show Accuracy and Awareness scores over time
 '''
 class ControlState(Enum):
     SCANNING = 1
@@ -112,7 +112,7 @@ class Controller:
         self.initialising_timer.start(4000)
     
     def enterSessionIntroState(self):
-        self.view.control_session_intro(self.trials_per_session)
+        self.view.control_session_intro(self.trial_lengths_s)
         self.trial_id = -1
 
     def enterReadyToStartState(self):

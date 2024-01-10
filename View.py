@@ -14,7 +14,7 @@ class View(QChartView):
 
         self.controls_widget = ControlsWidget()
 
-        self.configureStylesheet()
+        # self.configureStylesheet()
         self.configureCharts()
         self.configureLayout()
 
@@ -50,9 +50,11 @@ class View(QChartView):
         self.setLayout(layout)
         self.chart_ecg.setVisible(True)
 
-    def control_session_intro(self, trials_per_session):
+    def control_session_intro(self, trial_lengths_s):
         self.chart_ecg.setVisible(True)
-        self.controls_widget.message_box.setText(f"There will be {trials_per_session} sessions\nDuring each you will count your heart beats without taking your pulse\nAt the end you will enter the number you counted\n and the confidence in your estimate")
+        self.controls_widget.message_box.setText(f"There will be {len(trial_lengths_s)} sessions of random lengths between {min(trial_lengths_s)} s and {max(trial_lengths_s)} s\n"
+                                                 "During each you will count your heart beats (without taking your pulse)\n"
+                                                 "At the end, enter the total count and the confidence in your estimate")
         self.controls_widget.message_box.setStyleSheet(f"background-color: rgb({vars.GREEN[0]}, {vars.GREEN[1]}, {vars.GREEN[2]}); color: black;")
         self.controls_widget.start_button.setText("Continue")
         self.controls_widget.start_button.setStyleSheet("background-color: white; color: black; border: 1px solid black;")
@@ -156,6 +158,7 @@ class ControlsWidget(QWidget):
         self.confidence_scale = ConfidenceScale()
         self.blank_widget = QWidget()
         self.input_widget = QStackedWidget()
+
         self.input_widget.addWidget(self.beat_count_input)
         self.input_widget.addWidget(self.confidence_scale)
         self.input_widget.addWidget(self.blank_widget)
@@ -209,27 +212,42 @@ class ConfidenceScale(QWidget):
         # Left label (minimum value)
         min_label = QLabel("Total guess")
         min_label.setStyleSheet("background-color: white; color: black;")
-        min_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        min_label.setFixedWidth(200)  # Set a fixed width
-        min_label.setAlignment(Qt.AlignRight)
-        slider_layout.addWidget(min_label)
-
+        min_label.setFixedWidth(150)  # Set a fixed width
+        min_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
         # Create the slider
         self.slider = QSlider(Qt.Horizontal)
         self.slider.setMinimum(0)
         self.slider.setMaximum(10)
         self.slider.setValue(5)
         self.slider.setTickInterval(0.1)
-        self.slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.slider.setFixedWidth(200)  # Set a fixed width
         self.slider.setStyleSheet("background-color: white; color: black;")
-        slider_layout.addWidget(self.slider)
+        self.slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                height: 10px;  /* Custom height of the slider track */
+                background-color: lightgray;
+                margin: 0 10px;  /* Margins for the ends of the slider */
+            }
 
+            QSlider::handle:horizontal {
+                background-color: black;
+                width: 2px;  /* Narrow width for the handle */
+                margin: -5px 0;  /* Expand outside the groove */
+                border-radius: 1px;
+            }
+        """)
+        
         # Right label (maximum value)
         max_label = QLabel("Complete confidence")
         max_label.setStyleSheet("background-color: white; color: black;")
-        max_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        max_label.setFixedWidth(200)  # Set a fixed width
-        max_label.setAlignment(Qt.AlignLeft)
+        max_label.setFixedWidth(150)  # Set a fixed width
+        max_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        slider_layout.addWidget(min_label)
+        slider_layout.addStretch()
+        slider_layout.addWidget(self.slider)
+        slider_layout.addStretch()
         slider_layout.addWidget(max_label)
 
     def value(self):
