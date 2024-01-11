@@ -1,38 +1,45 @@
-# Every Breath You Take – Heart Rate Variability Training with the Polar H10 Monitor
+# Interoception – Know your heart with the Polar H10 Heart Rate 
 
-Through controlled breathing it is possible to regulate your body's stress reponse. This application allows you to measure and train this effect with a Polar H10 Heart Rate monitor.
+The awareness of a person's own heartbeat, measured by counting heart beats without taking a pulse, plays a role in a person's ability to process emotions and regulate pain. This application allows you to assess heart beat detection accuracy and awareness using a widely available Polar H10 Heart rate monitor, and compare results against the data from a major study on interoceptive awareness.
 
-Heart rate variability, the small changes in heart rate from beat-to-beat, is a reliable measure of stress response. Heart rate variability reflects the balance between the two sides of the autonomic nervous system: the fight-or-flight response (from the sympathetic nervous system) and the rest-and-digest response (from the parasympathetic nervous system).
+Interoceptive awareness, the ability to identify sensations of the internal state of the body, has gained recent attention in psychology and cognitive science. The way in which the body is represented in the mind has been found to play a role in decision making, emotional regulation, memory, and a person's sense of self. Recent studies on mindfulness have also found that practises focused on developing a non-reactive attitude towards internal sensations (e.g. body scan techniques) may help to re-train the attitude a perons has towards interoceptive signals, methods that have had success a alleviating maladaptive patterns like anxiety.
 
-In any moment it is possible to restore balance to the autonomic nervous system by breathing slower and deeper. With every breath you take, you can set the pace of your breathing rate, measure your breathing control with the chest accelerometer, and see how heart rate variability responds.
+A simple and widely used method for measuring interoceptive accuracy is the Heatbeat Detection Task, where people are asked to counted their heart beat over a period of time by focussing internally. Two metrics are then calculated, accuracy, how well their estimate corresponded with the ground truth, and awareness, how well the accuracy corresponding with their self-reported confidence. 
 
-![](img/screen_record.gif)
+![](img/screen_record_1.gif)
 
 ## Features
 
-- Connect and stream from a Polar H10, acceleration and heart rate data
-- Live breathing control feedback and adjustable pace setting
-- Track breathing and heart rate oscillations in real-time
-- Explore how heart rate vairability repsonses to different breathing rates
+- Connect and stream ECG data from a Polar H10
+- Progress through heart beat detection trials, entering heartbeat count estimates and confidence as ground truth is measured
+- Review heart beat detection accuracy and awareness over multiple trials using the protocol from the widely cited paper on interoceptive awareness *Knowing your own heart: Distinguishing interoceptive accuracy from interoceptive awareness. Garfinkel et. al.*
+- Compare results against the dataset collected across 80 research participants
+- Save out session data
 
 ## Installation and usage
     
     python -m venv venv
     source venv/bin/activate  # On Windows, use `my_project_env\Scripts\activate`
     pip install -r requirements.txt
-    python EBYT.py 
+    python HeartbeatDetection.py 
 
-Bundle into an application with pyinstaller:
+The program will automatically connect to your Polar device. Follow the steps on the screen.
 
-    pyinstaller EBYT.spec
+Follow your ECG signal which traces across the top of the screen to see you've got a good signal
 
-The program will automatically connect to your Polar device. For best breathing detection, ensure the Polar H10 is fitted around the widest part of the ribcage, stay seated and still while recording.
+Begin a trial, counting your heart beats to yourself, without taking your pulse
 
-Set the breathing pace with the slider (in breaths per minute), and follow the cadence as the gold circle expands and contracts. The blue circle shows your breathing control.
+At the end of the trial, enter the number of beats you counted, then indicate on the sliding scale how confident you were in your estimate
 
-Track each breath cycle in the top graph, and how heart rate oscillates in repsonse.
+![](img/screen_record_2.gif)
 
-Adjust breathing pace and control to target the green zone of heart rate variability in the bottom graph (> 150 ms).
+Repeat this for six trials, between 25 and 50 seconds. 
+
+Review your average accuracy score, and your awareness score – how well your confidence aligned with your performance.
+
+Compared your scores against the 80 participants of the original research study.
+
+![](img/screen_record_3.gif)
 
 ## Contributing
 Feedback, bug reports, and pull requests are welcome. Feel free to submit an issue or create a pull request on GitHub.
