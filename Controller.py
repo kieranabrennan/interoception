@@ -9,7 +9,7 @@ import vars
 
 '''
 TODO:
-- Save the Accuracy and Awareness scores to a file
+- Write README.md
 - Show Accuracy and Awareness scores over time
 '''
 class ControlState(Enum):
@@ -144,7 +144,8 @@ class Controller:
     def enterResultsState(self):
         session_results = self.model.calculateSessionResults()
         self.view.control_results(session_results["accuracy_score"], session_results["accuracy_percentile"], \
-                                  session_results["awareness_score"], session_results["awareness_percentile"])
+                                  session_results["awareness_score"], session_results["awareness_percentile"], \
+                                  session_results["awareness_p_value"])
         self.model.viewResults()
         
     # View update functions

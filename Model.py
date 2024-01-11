@@ -10,6 +10,7 @@ import scipy.stats
 import numpy as np
 import pandas as pd
 import vars
+import seaborn as sns
 
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -168,21 +169,32 @@ class SessionData:
         print(f"Data saved to {self.session_filepath}")
 
     def plotSessionSummaryGraphs(self):
-        plt.figure(figsize=(10, 5))
+        sns.set(style="whitegrid") 
+        plt.figure(figsize=(8, 4)) 
+
         plt.subplot(1, 2, 1)
-        plt.plot([trial["count_measured"] for trial in self.trials], [trial["count_entered"] for trial in self.trials], "o")
+        plt.plot([trial["count_measured"] for trial in self.trials], 
+                [trial["count_entered"] for trial in self.trials], 
+                "o", markersize=8, markerfacecolor='blue', markeredgewidth=2, markeredgecolor='black') 
         plt.xlabel('Measured beat count')
         plt.ylabel('Estimated beat count')
-        plt.title(f"Average accuracy: {np.mean([trial['accuracy'] for trial in self.trials]):.2f}")
+        plt.title(f"Average accuracy: {np.mean([trial['accuracy'] for trial in self.trials]):.2f}", fontsize=14)
         plt.xlim([0, 70])
         plt.ylim([0, 70])
+        plt.grid(True)  
+
         plt.subplot(1, 2, 2)
-        plt.plot([trial["confidence"] for trial in self.trials], [trial["accuracy"] for trial in self.trials], "o")
+        plt.plot([trial["confidence"] for trial in self.trials], 
+                [trial["accuracy"] for trial in self.trials], 
+                "o", markersize=8, markerfacecolor='green', markeredgewidth=2, markeredgecolor='black')  
         plt.xlabel('Confidence')
         plt.ylabel('Accuracy')
-        plt.title(f"Awareness: {self.awareness_score:.2f}")
+        plt.title(f"Awareness: {self.awareness_score:.2f}", fontsize=14)
         plt.xlim([0, 10])
         plt.ylim([0, 1])
+        plt.grid(True)  
+
+        plt.tight_layout() 
         plt.show()
     
 
