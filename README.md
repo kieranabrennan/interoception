@@ -1,4 +1,4 @@
-# Interoception – Know your heart with the Polar H10 Heart Rate 
+# Total Eclipse of the Heart – Improve your interoceptive awareness with a Heart Rate Monitor
 
 The awareness of a person's own heartbeat, measured by counting heart beats without taking a pulse, plays a role in a person's ability to process emotions and regulate pain. This application allows you to assess heart beat detection accuracy and awareness using a widely available Polar H10 Heart rate monitor, and compare results against the data from a major study on interoceptive awareness.
 
